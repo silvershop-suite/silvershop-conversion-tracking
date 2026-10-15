@@ -18,13 +18,15 @@ use SilverStripe\ORM\DataObject;
  * ({@see ConversionItem::$id}) is the shared feed id so the ad platforms' catalogue match lines up with the product
  * feed's `g:id` BY CONSTRUCTION:
  *
- *  - when silvershop/catalog-data is installed we read {@see CatalogProductData::feedId()} / price / currency /
- *    brand / gtin straight from its factory (the one source of truth — the config is therefore shared with the
- *    feed and SEO);
- *  - when it is absent we fall back to an id extractor that implements the IDENTICAL rule
- *    ({@see CatalogProductDataFactory::feedId()} — SKU-first, `product-{ID}` / `{parentFeedId}-{variationID}`
- *    fallback, ≤50 chars), reading a mirrored {@see self::$id_source} / {@see self::$id_max_length} config, so the
- *    two can never diverge.
+ *  - when silvershop/catalog-data is installed we delegate the id to its cheap {@see CatalogProductDataFactory::feedId()}
+ *    (the one source of truth — the config, and therefore the id, is shared with the feed and SEO);
+ *  - when it is absent we fall back to an id extractor that implements the IDENTICAL rule (SKU-first,
+ *    `product-{ID}` / `{parentFeedId}-{variationID}`, ≤50 chars), reading a mirrored {@see self::$id_source} /
+ *    {@see self::$id_max_length} config, so the two can never diverge.
+ *
+ * Name / price / brand / gtin are read DIRECTLY off the buyable (light accessors), NOT from catalog-data's full VO:
+ * building that VO per line (images, category paths, descriptions) is needless for a conversion event and makes a
+ * multi-line checkout / purchase render slow, so this factory stays deliberately lightweight.
  */
 class ConversionItemFactory
 {
@@ -59,37 +61,26 @@ class ConversionItemFactory
      */
     public function forBuyable(Buyable $buyable, int $quantity = 1, ?float $unitPrice = null): ConversionItem
     {
-        if ($this->catalogAvailable() && $buyable instanceof DataObject) {
-            $data = CatalogProductDataFactory::create()->forBuyable($buyable);
-            $price = $unitPrice ?? $data->salePrice() ?? $data->price() ?? $this->sellingPrice($buyable);
-
-            return new ConversionItem(
-                $data->feedId(),
-                $data->itemGroupId(),
-                $data->title(),
-                round((float) $price, 2),
-                max(1, $quantity),
-                $data->brand(),
-                $data->gtin(),
-            );
-        }
-
+        // Deliberately LIGHT: only the shared feedId (delegated to catalog-data's cheap feedId() method) plus direct
+        // buyable accessors. We do NOT build catalog-data's full VO here — that computes images, category paths and
+        // descriptions per item, which a conversion event does not need and which makes a multi-line checkout /
+        // purchase render very slow (image URL / file-ID resolution on every line).
         return new ConversionItem(
             $this->feedId($buyable),
-            $this->fallbackItemGroupId($buyable),
-            $this->fallbackName($buyable),
+            $this->itemGroupId($buyable),
+            $this->name($buyable),
             round((float) ($unitPrice ?? $this->sellingPrice($buyable)), 2),
             max(1, $quantity),
-            null,
-            null,
+            $this->brand($buyable),
+            $this->gtin($buyable),
         );
     }
 
     /**
-     * Fallback item name (no catalog-data): a variation reads its parent product's title (+ its own variant title)
-     * the way catalog-data does, since a variation usually has no title of its own.
+     * Item name: a variation reads its parent product's title (+ its own variant title), since a variation usually
+     * has no title of its own.
      */
-    private function fallbackName(Buyable $buyable): string
+    private function name(Buyable $buyable): string
     {
         if ($buyable instanceof Variation) {
             $parent = $buyable->Product();
@@ -100,6 +91,39 @@ class ConversionItemFactory
         }
 
         return (string) $buyable->getTitle();
+    }
+
+    /**
+     * Brand title, read from silvershop/brands' Brand() relation when present (guarded). A variation inherits its
+     * parent product's brand. Null when brands is absent or no brand is set.
+     */
+    private function brand(Buyable $buyable): ?string
+    {
+        $source = $buyable instanceof Variation ? $buyable->Product() : $buyable;
+        if (!$source instanceof DataObject || !$source->hasMethod('Brand')) {
+            return null;
+        }
+        $brand = $source->Brand();
+        if (!$brand instanceof DataObject || !$brand->exists()) {
+            return null;
+        }
+        $title = trim((string) $brand->getField('Title'));
+
+        return $title !== '' ? $title : null;
+    }
+
+    /**
+     * Resolved GTIN from silvershop/product-identity (which owns the variant→product fallback), guarded. Null when
+     * that module is absent or no code is set.
+     */
+    private function gtin(Buyable $buyable): ?string
+    {
+        if (!$buyable instanceof DataObject || !$buyable->hasMethod('getResolvedGtin')) {
+            return null;
+        }
+        $gtin = trim((string) $buyable->getResolvedGtin());
+
+        return $gtin !== '' ? $gtin : null;
     }
 
     /**
@@ -120,7 +144,10 @@ class ConversionItemFactory
         return class_exists((string) static::config()->get('catalog_factory_class'));
     }
 
-    private function fallbackItemGroupId(Buyable $buyable): ?string
+    /**
+     * item_group_id for a variation = the parent product's (shared) feedId; null for a simple product.
+     */
+    private function itemGroupId(Buyable $buyable): ?string
     {
         if (!$buyable instanceof Variation) {
             return null;
