@@ -1,0 +1,39 @@
+---
+Name: silvershop-conversion-tracking
+After:
+  - '#silvershop'
+  - '#queuedjobs'
+---
+# The lifecycle seams. All target classes ship with silvershop/core (a hard dependency), so these are wired
+# directly in YAML — no class_exists guard needed. PurchaseConfirmationExtension sits on ContentController so it
+# covers the checkout (`complete`/`order`) and account (`order`) confirmation renders from one attachment.
+SilverStripe\CMS\Controllers\ContentController:
+  extensions:
+    - SilverShop\ConversionTracking\Extension\ConversionControllerExtension
+    - SilverShop\ConversionTracking\Extension\PurchaseConfirmationExtension
+
+SilverShop\Page\ProductController:
+  extensions:
+    - SilverShop\ConversionTracking\Extension\ProductTrackingExtension
+
+SilverShop\Page\CheckoutPageController:
+  extensions:
+    - SilverShop\ConversionTracking\Extension\CheckoutTrackingExtension
+
+SilverShop\Model\Order:
+  extensions:
+    - SilverShop\ConversionTracking\Extension\CartTrackingExtension
+    - SilverShop\ConversionTracking\Extension\PurchaseTrackingExtension
+---
+# Connector registry. Each connector module (silvershop/conversion-tracking-meta, …-google) adds its own entry
+# under `providers` and switches itself on under `active`; the core ships empty, so it emits only the always-on
+# GA4 `dataLayer` until a connector is installed + configured.
+SilverShop\ConversionTracking\Provider\ConversionProviderRegistry:
+  providers: {}
+  active: []
+
+# The server-side dispatch job is retried a few times with a growing delay for transient CAPI / network errors.
+SilverShop\ConversionTracking\Job\ConversionDispatchJob:
+  retry_max_attempts: 3
+  retry_initial_delay: 60
+  retry_falloff_multiplier: 2

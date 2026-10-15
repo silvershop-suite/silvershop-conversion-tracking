@@ -1,0 +1,62 @@
+{
+    "name": "silvershop/conversion-tracking",
+    "description": "Ad conversion / event tracking core for SilverShop (CMS 6): a normalised ViewContent→AddToCart→InitiateCheckout→Purchase event model, an always-on GA4-shaped dataLayer emit, hard consent gating bound to silvershop/cookieconsent, deterministic purchase event_id dedup, and a queued server-side dispatch framework. Per-platform connectors (Meta, Google) plug in through the ConversionProvider seam.",
+    "type": "silverstripe-vendormodule",
+    "keywords": ["silverstripe", "silvershop", "ecommerce", "conversion-tracking", "pixel", "capi", "ga4", "consent", "dataLayer"],
+    "license": "BSD-3-Clause",
+    "authors": [
+        {
+            "name": "SilverShop Contributors",
+            "homepage": "https://github.com/silvershop/silvershop-conversion-tracking/graphs/contributors"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "silverstripe/framework": "^6",
+        "silverstripe/cms": "^6",
+        "silvershop/core": "^6.2",
+        "symbiote/silverstripe-queuedjobs": "^6"
+    },
+    "require-dev": {
+        "cambis/silverstan": "^2.1",
+        "silverstripe/recipe-testing": "^4",
+        "silverstripe/sqlite3": "^4",
+        "squizlabs/php_codesniffer": "^3.0"
+    },
+    "suggest": {
+        "silvershop/catalog-data": "Shared product-identity source: content_ids / item_id = CatalogProductData::feedId(), so the ad-platform catalogue match lines up with the product feed by construction. A built-in identical-rule fallback is used when absent.",
+        "silvershop/cookieconsent": "The consent gate + Consent Mode v2 source every tag/event binds to (Meta → marketing, GA4 → statistics, Ads → marketing). Strongly recommended; without it the module default-denies.",
+        "silvershop/order-confirmation": "Provides the unified, status-aware checkout/complete/{ID} success render the client-side Purchase fires on (paid only, never pending)."
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "stan": "vendor/bin/phpstan analyse --configuration=phpstan.neon --memory-limit=-1",
+        "lint": "vendor/bin/phpcs",
+        "lint:fix": "vendor/bin/phpcbf"
+    },
+    "config": {
+        "allow-plugins": {
+            "composer/installers": true,
+            "silverstripe/recipe-plugin": true,
+            "silverstripe/vendor-plugin": true,
+            "php-http/discovery": false
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "1.x-dev"
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "SilverShop\\ConversionTracking\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SilverShop\\ConversionTracking\\Tests\\": "tests/php/"
+        }
+    },
+    "prefer-stable": true,
+    "minimum-stability": "dev"
+}

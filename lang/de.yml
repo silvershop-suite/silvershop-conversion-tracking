@@ -1,0 +1,3 @@
+de:
+  SilverShop\ConversionTracking\Job\ConversionDispatchJob:
+    TITLE: 'Conversion-Ereignis "{event}" ({id}) an Werbeplattformen senden'

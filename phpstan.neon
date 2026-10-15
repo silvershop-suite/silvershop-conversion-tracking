@@ -1,0 +1,16 @@
+includes:
+    - vendor/cambis/silverstan/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - src
+    # These two touch SOFT dependencies behind class_exists() guards, so the referenced classes are absent from the
+    # standalone analysis (silvershop/cookieconsent and silvershop/catalog-data are `suggest`, not `require`). They
+    # are exercised fully in the clean-room (where the path repos are present) and live on a shop.
+    excludePaths:
+        - src/Service/ConsentGate.php
+        - src/Service/ConversionItemFactory.php
+    treatPhpDocTypesAsCertain: false
+    silverstan:
+        includeTestOnly: true

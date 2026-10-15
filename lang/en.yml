@@ -1,0 +1,3 @@
+en:
+  SilverShop\ConversionTracking\Job\ConversionDispatchJob:
+    TITLE: 'Dispatch conversion event "{event}" ({id}) to ad platforms'
