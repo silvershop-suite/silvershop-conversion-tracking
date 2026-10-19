@@ -9,19 +9,19 @@ it out:
 - each installed **connector**'s first-party tag (Meta Pixel / Google `gtag`) **plus** its server-to-server path
   (Meta Conversions API / Google Enhanced Conversions), through a retryable queued job.
 
-Everything is **hard-gated on consent** (bound to `silvershop/cookieconsent`), the browser event and the server
+Everything is **hard-gated on consent** (bound to `silvershop-suite/cookieconsent`), the browser event and the server
 event share a **deterministic `event_id`** so Meta/Google de-duplicate the pair, and product ids are the **shared
-feed id** (`silvershop/catalog-data`), so the ad-platform catalogue match lines up with the product feed by
+feed id** (`silvershop-suite/catalog-data`), so the ad-platform catalogue match lines up with the product feed by
 construction.
 
 This module is the **core**. The per-platform clients ship separately:
 
-- [`silvershop/conversion-tracking-meta`](https://github.com/silvershop/silvershop-conversion-tracking-meta) — Meta
+- [`silvershop-suite/conversion-tracking-meta`](https://github.com/silvershop/silvershop-conversion-tracking-meta) — Meta
   Pixel + Conversions API.
-- [`silvershop/conversion-tracking-google`](https://github.com/silvershop/silvershop-conversion-tracking-google) —
+- [`silvershop-suite/conversion-tracking-google`](https://github.com/silvershop/silvershop-conversion-tracking-google) —
   GA4 + Google Ads + Enhanced Conversions.
 
-It mirrors the core+connector architecture of `silvershop/newsletter` (+ its ESP adapters) and `silvershop/search`
+It mirrors the core+connector architecture of `silvershop-suite/newsletter` (+ its ESP adapters) and `silvershop-suite/search`
 (+ `search-meilisearch`).
 
 ## Requirements
@@ -33,17 +33,17 @@ It mirrors the core+connector architecture of `silvershop/newsletter` (+ its ESP
 
 Strongly recommended / optional (all read behind `class_exists` guards):
 
-- **`silvershop/cookieconsent`** — the consent gate + Consent Mode v2 source every tag/event binds to. **Without a
+- **`silvershop-suite/cookieconsent`** — the consent gate + Consent Mode v2 source every tag/event binds to. **Without a
   consent source the module default-denies** (fires nothing) unless you opt in (see *Consent* below).
-- **`silvershop/catalog-data`** — the shared product identity (`content_ids` / `item_id` = `feedId()`). A built-in
+- **`silvershop-suite/catalog-data`** — the shared product identity (`content_ids` / `item_id` = `feedId()`). A built-in
   identical-rule fallback is used when absent.
-- **`silvershop/order-confirmation`** — the unified, status-aware `checkout/complete/{ID}` success render the
+- **`silvershop-suite/order-confirmation`** — the unified, status-aware `checkout/complete/{ID}` success render the
   client-side Purchase fires on.
 
 ## Install
 
 ```bash
-composer require silvershop/conversion-tracking
+composer require silvershop-suite/conversion-tracking
 ```
 
 Install at least one connector and supply its env ids/token, then switch it on in config (the connectors register
@@ -75,7 +75,7 @@ Every seam mints a platform-neutral `ConversionEvent` (`src/Model/`):
 | Purchase (server truth) | `Order::onPaid` — fires once on the paid transition (the webhook truth for async iDEAL/Mollie), enqueues the dispatch job |
 | Purchase (client) | the confirmed-paid confirmation render (`checkout/complete/{ID}` / `order`), access-gated + `IsPaid()` only — never pending |
 
-All tags are injected via a `ContentController` extension + `Requirements` (exactly how `silvershop/cookieconsent`
+All tags are injected via a `ContentController` extension + `Requirements` (exactly how `silvershop-suite/cookieconsent`
 injects) — **the module never edits a theme template**.
 
 ### Deduplication
@@ -88,13 +88,13 @@ Purchase.
 ### Product identity = the feed id
 
 `content_ids` / GA4 `item_id` = `SilverShop\CatalogData\CatalogProductDataFactory::feedId()` when
-`silvershop/catalog-data` is installed (so the feed's `g:id` and the ad `content_ids` are the same string by
+`silvershop-suite/catalog-data` is installed (so the feed's `g:id` and the ad `content_ids` are the same string by
 construction). When catalog-data is absent, a built-in fallback mints the id by the **identical rule** (SKU-first,
 `product-{ID}` / `{parentFeedId}-{variationID}`, ≤50 chars), so the two never diverge.
 
 ## Consent (bound to cookieconsent — not reinvented)
 
-Nothing fires before consent. The module is a **consumer** of `silvershop/cookieconsent`:
+Nothing fires before consent. The module is a **consumer** of `silvershop-suite/cookieconsent`:
 
 - **PHP gate** — `ConsentState::has('marketing' | 'statistics')` decides whether a tag/event may fire and whether a
   server send runs.
@@ -108,7 +108,7 @@ Nothing fires before consent. The module is a **consumer** of `silvershop/cookie
 Category bindings: **Meta → `marketing`**, **GA4 → `statistics`**, **Google Ads → `marketing`**. The always-on
 `dataLayer` push is gated on `statistics` by default (`ConversionEventService.datalayer_consent_category`).
 
-**Default-deny when there is no consent source.** With `silvershop/cookieconsent` absent, the module fires nothing
+**Default-deny when there is no consent source.** With `silvershop-suite/cookieconsent` absent, the module fires nothing
 unless you explicitly accept responsibility for consent elsewhere:
 
 ```yaml
@@ -116,7 +116,7 @@ SilverShop\ConversionTracking\Service\ConsentGate:
   assume_consent_without_module: true   # default false (GDPR-safe)
 ```
 
-> **Consent Mode SSR-default coordination note.** `silvershop/cookieconsent` only emits the server-side
+> **Consent Mode SSR-default coordination note.** `silvershop-suite/cookieconsent` only emits the server-side
 > `gtag('consent','default', …denied)` in `<head>` when the `GA_CODE` or `GTM_CODE` env var is set; otherwise the
 > default-denied is emitted by its JS runtime (always, before any tag activates). For a belt-and-suspenders SSR
 > Consent-Mode default without relying on the JS runtime, set one of those env vars. This module does **not** edit
