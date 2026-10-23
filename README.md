@@ -16,9 +16,9 @@ construction.
 
 This module is the **core**. The per-platform clients ship separately:
 
-- [`silvershop-suite/conversion-tracking-meta`](https://github.com/silvershop/silvershop-conversion-tracking-meta) — Meta
+- [`silvershop-suite/conversion-tracking-meta`](https://github.com/silvershop-suite/silvershop-conversion-tracking-meta) — Meta
   Pixel + Conversions API.
-- [`silvershop-suite/conversion-tracking-google`](https://github.com/silvershop/silvershop-conversion-tracking-google) —
+- [`silvershop-suite/conversion-tracking-google`](https://github.com/silvershop-suite/silvershop-conversion-tracking-google) —
   GA4 + Google Ads + Enhanced Conversions.
 
 It mirrors the core+connector architecture of `silvershop-suite/newsletter` (+ its ESP adapters) and `silvershop-suite/search`
